@@ -15,6 +15,7 @@ class _MainPageState extends State<MainPage> {
     const PhotosPage(),
     const FavoritesPage(),
     const UploadPage(),
+    const UploadPage(),
   ];
 
   int _pageIndex = 0;
@@ -27,7 +28,8 @@ class _MainPageState extends State<MainPage> {
         [
           BottomNavigationBarItem(icon: Icon(Icons.image), label: "Photos"),
           BottomNavigationBarItem(icon: Icon(Icons.star), label: "Favorites"),
-          BottomNavigationBarItem(icon: Icon(Icons.upload), label: "Upload")
+          BottomNavigationBarItem(icon: Icon(Icons.upload), label: "Upload"),
+          BottomNavigationBarItem(icon: Icon(Icons.camera), label: "Camera"),
         ],
         onTap: (index) {
           setState(() {
@@ -35,6 +37,8 @@ class _MainPageState extends State<MainPage> {
           });
         },
         currentIndex: _pageIndex,
+        unselectedItemColor: Colors.deepPurple.shade200,
+        fixedColor: Colors.deepPurple,
       ),
     );
   }
