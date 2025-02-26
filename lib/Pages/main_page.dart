@@ -2,7 +2,6 @@ import 'package:camera/camera.dart';
 import 'package:cloud_lens/Pages/camera_page.dart';
 import 'package:cloud_lens/Pages/favorites_page.dart';
 import 'package:cloud_lens/Pages/photos_page.dart';
-import 'package:cloud_lens/Pages/upload_page.dart';
 import 'package:flutter/material.dart';
 
 class MainPage extends StatefulWidget {
@@ -19,7 +18,6 @@ class _MainPageState extends State<MainPage> {
   late final List<Widget> pages = [
     const PhotosPage(),
     const FavoritesPage(),
-    const UploadPage(),
     CameraPage(cameras: cameras),
   ];
 
@@ -33,7 +31,6 @@ class _MainPageState extends State<MainPage> {
         [
           BottomNavigationBarItem(icon: Icon(Icons.image), label: "Photos"),
           BottomNavigationBarItem(icon: Icon(Icons.star), label: "Favorites"),
-          BottomNavigationBarItem(icon: Icon(Icons.upload), label: "Upload"),
           BottomNavigationBarItem(icon: Icon(Icons.camera), label: "Camera"),
         ],
         onTap: (index) {
