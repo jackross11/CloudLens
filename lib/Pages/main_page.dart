@@ -5,30 +5,46 @@ import 'package:cloud_lens/Pages/photos_page.dart';
 import 'package:flutter/material.dart';
 
 class MainPage extends StatefulWidget {
-  final List<CameraDescription> cameras;
-  const MainPage({super.key, required this.cameras});
+  const MainPage({
+    super.key,
+  });
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  late final List<CameraDescription> cameras = widget.cameras;
-
-  late final List<Widget> pages = [
-    const PhotosPage(),
-    const FavoritesPage(),
-    CameraPage(cameras: cameras),
-  ];
-
+  late List<CameraDescription> cameras = []; // List to store initialized cameras
   int _pageIndex = 0;
+
+  // Initialize the cameras
+  Future<void> initializeCameras() async {
+    try {
+      // Get available cameras on the device
+      cameras = await availableCameras();
+      setState(() {});
+    } catch (e) {
+      print("Error initializing cameras: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    initializeCameras(); // Call initializeCameras when the page loads
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[_pageIndex],
-      bottomNavigationBar: BottomNavigationBar(items:
-        [
+      body: cameras.isEmpty ? Center(child: CircularProgressIndicator())
+          : [
+              const PhotosPage(),
+              const FavoritesPage(),
+              CameraPage(cameras: cameras), // Pass initialized cameras to CameraPage
+            ][_pageIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: [
           BottomNavigationBarItem(icon: Icon(Icons.image), label: "Photos"),
           BottomNavigationBarItem(icon: Icon(Icons.star), label: "Favorites"),
           BottomNavigationBarItem(icon: Icon(Icons.camera), label: "Camera"),

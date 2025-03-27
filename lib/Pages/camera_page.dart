@@ -41,13 +41,13 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void onCameraPressed() async {
-    XFile picture = await _controller.takePicture();
+    //XFile picture = await _controller.takePicture();
 
     // TODO: send picture to server
   }
 
   void onPhotoLibraryPressed() async {
-    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    //final image = await ImagePicker().pickImage(source: ImageSource.gallery);
 
     // TODO: send picture to server
   }
