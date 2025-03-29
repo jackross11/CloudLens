@@ -84,33 +84,152 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: handleSignIn,
-              child: Text('Login'),
-            ),
-            SizedBox(height: 20),
-            TextButton(
-              onPressed: navigateToSignUpPage,
-              child: Text("Don't have an account? Sign Up"),
-            ),
-          ],
-        ),
+        child:
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // page icon
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 30.0),
+                child:
+                  Center(
+                    child:
+                    Image.asset(
+                      'assets/icon.png',
+                      height: 175.0,
+                      width: 175.0,
+                    ),
+                  ),
+              ),
+
+              // email input
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: Offset(0, 2)
+                    )
+                  ]
+                ),
+                child:
+                  TextField(
+                    decoration: InputDecoration(
+                      icon: Icon(
+                        Icons.email,
+                      ),
+                      hintText: "Email",
+                    ),
+                    controller: emailController,
+                  ),
+              ),
+              SizedBox(height: 20.0),
+
+              // password input
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30.0),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                          offset: Offset(0, 2)
+                      )
+                    ]
+                ),
+                child:
+                TextField(
+                  controller: passwordController,
+                  decoration: InputDecoration(
+                    icon: Icon(
+                      Icons.lock,
+                    ),
+                    hintText: "Password",
+                  ),
+                  obscureText: true,
+                ),
+              ),
+              SizedBox(height: 30),
+
+              // login button
+              ElevatedButton(
+                onPressed: handleSignIn,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  elevation: 5.0,
+                  minimumSize: Size(double.infinity, 45)
+                ),
+                child: Text(
+                  'Login',
+                  style: TextStyle(
+                    fontSize: 15.0,
+                    fontWeight: FontWeight.bold
+                  ),
+                ),
+              ),
+              SizedBox(height: 15.0),
+
+              // divider
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                        margin: const EdgeInsets.only(left: 10.0, right: 20.0),
+                        child: Divider(
+                          color: Colors.deepPurple,
+                          height: 36,
+                        )),
+                  ),
+                  Text(
+                    "OR",
+                    style: TextStyle(
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                        margin: const EdgeInsets.only(left: 20.0, right: 10.0),
+                        child: Divider(
+                          color: Colors.deepPurple,
+                          height: 36,
+                        )),
+                  ),
+                ]
+              ),
+              SizedBox(height: 15.0),
+
+              // sign up button
+              ElevatedButton(
+                onPressed: navigateToSignUpPage,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    elevation: 5.0,
+                    minimumSize: Size(double.infinity, 45)
+                ),
+                child: Text(
+                  'Sign Up',
+                  style: TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.bold
+                  ),
+                ),
+              ),
+            ],
+          )
       ),
     );
   }
