@@ -42,13 +42,11 @@ class _CameraPageState extends State<CameraPage> {
 
   void onCameraPressed() async {
     //XFile picture = await _controller.takePicture();
-
     // TODO: send picture to server
   }
 
   void onPhotoLibraryPressed() async {
     //final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-
     // TODO: send picture to server
   }
 
@@ -69,27 +67,46 @@ class _CameraPageState extends State<CameraPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: onCameraPressed,
-                      iconSize: 50,
-                      icon: Icon(Icons.camera),
-                    ),
-                    IconButton(
                       onPressed: onPhotoLibraryPressed,
                       iconSize: 50,
-                      icon: Icon(Icons.photo_album),
+                      icon: Icon(Icons.photo_library),
+                      color: Color.fromARGB(255, 51, 51, 51),
+                    ),
+
+                    GestureDetector(
+                      onTap: onCameraPressed,
+                      child: Container(
+                        width: 60.0,
+                        height: 60.0,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Color.fromARGB(255, 51, 51, 51),
+                            width: 3.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 50.0,
+                            height: 50.0,
+                            decoration: BoxDecoration(
+                              color: Color.fromARGB(255, 255, 87, 51),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: _switchCamera,
+                      icon: Icon(Icons.cameraswitch),
+                      iconSize: 50,
+                      color: Color.fromARGB(255, 51, 51, 51),
                     ),
                   ],
                 ),
-                IconButton(
-                  onPressed: _switchCamera,
-                  icon: Icon(Icons.refresh),
-                  iconSize: 50,
-                  color: Colors.blue,
-                ),
-                Text(
-                  _currentCameraIndex == 0 ? 'Back Camera' : 'Front Camera',
-                  style: TextStyle(fontSize: 16),
-                )
               ],
             );
           } else {
