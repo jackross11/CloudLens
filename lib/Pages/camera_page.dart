@@ -49,6 +49,7 @@ class _CameraPageState extends State<CameraPage> {
     _initializeCamera(_currentCameraIndex);
   }
 
+  //take a photo and save
   void onCameraPressed() async {
   try {
     if (!_controller.value.isInitialized) {
