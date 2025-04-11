@@ -4,9 +4,9 @@ import 'package:cloud_lens/Pages/main_page.dart';  // Assuming you're navigating
 import 'package:cloud_lens/Pages/login.dart';
 
 class SignupPage extends StatefulWidget {
-  const SignupPage({
-    super.key,
-  });
+  final Future<void> Function(BuildContext) signOutCallback;
+
+  const SignupPage({super.key, required this.signOutCallback});
 
   @override
   _SignupPageState createState() => _SignupPageState();
@@ -35,7 +35,7 @@ class _SignupPageState extends State<SignupPage> {
         // Navigate to the next page, for example, FavoritesPage
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MainPage()),
+          MaterialPageRoute(builder: (context) => MainPage(signOutCallback: widget.signOutCallback)),
         );
       } else {
         print('Signup not complete');
@@ -51,7 +51,7 @@ class _SignupPageState extends State<SignupPage> {
   void navigateToSignInPage() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage()), // Assuming you have a SignInPage
+      MaterialPageRoute(builder: (context) => LoginPage(signOutCallback: widget.signOutCallback)), // Assuming you have a SignInPage
     );
   }
 

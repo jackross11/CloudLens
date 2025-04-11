@@ -1,0 +1,14 @@
+{
+  "resourceName": "cloudlens",
+  "policyUUID": "9b40109d",
+  "bucketName": "cloudlens-images",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "S3Triggercf96167b",
+  "groupAccess": {}
+}
