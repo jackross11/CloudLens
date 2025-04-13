@@ -38,7 +38,7 @@ class MyApp extends StatefulWidget {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.detached) {
-      // Sign out the user when the app is paused (backgrounded) or detached (closed)
+      // Sign out the user when the app is detached (closed)
       try {
         await Amplify.Auth.signOut();
         print('User signed out successfully');

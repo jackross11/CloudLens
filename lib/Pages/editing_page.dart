@@ -78,26 +78,7 @@ class _EditingImagesState extends State<EditingImages> {
     base64Image = base64Image.split(',').last;
   }
 
-  String lambdaUrl = '';
-  switch (operation) {
-    case 'grayscale':
-      lambdaUrl = 'https://ivi524iedl.execute-api.us-east-1.amazonaws.com/default/GreyScale/greyscale';
-      break;
-    case 'resize':
-      lambdaUrl = 'https://your-api-id.execute-api.region.amazonaws.com/dev/resize';
-      break;
-    case 'negative':
-      lambdaUrl = 'https://your-api-id.execute-api.region.amazonaws.com/dev/negative';
-      break;
-    default:
-      lambdaUrl = '';
-  }
-
-  if (lambdaUrl.isEmpty) {
-    print('Invalid Lambda endpoint');
-    setState(() => isLoading = false);
-    return;
-  }
+  String lambdaUrl = 'https://ivi524iedl.execute-api.us-east-1.amazonaws.com/default/GreyScale/greyscale';
 
   final fileName = widget.imageUrl.split('/').last;
 
@@ -110,6 +91,7 @@ class _EditingImagesState extends State<EditingImages> {
         'Content-Type': 'application/json',
       },
       body: json.encode({
+        'operation': operation,
         'file_name': fileName,
         'body': base64Image,
       }),
