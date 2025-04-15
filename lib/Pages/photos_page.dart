@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloud_lens/Pages/editing_page.dart';
 
 class PhotosPage extends StatefulWidget {
@@ -14,7 +14,7 @@ class PhotosPage extends StatefulWidget {
   _PhotosPageState createState() => _PhotosPageState();
 }
 
-class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateMixin{
+class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateMixin {
   final _picker = ImagePicker();
   File? _selectedImage;
   List<String> _cloudImageURLs = [];
@@ -25,23 +25,59 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    // Initialize TabController with length 2 (Local, Cloud)
     _tabController = TabController(length: 2, vsync: this);
-    _fetchCloudImages(); // Fetch cloud images when the page loads
+    _fetchCloudImages();
+    _loadLocalImagesFromPictures();
   }
 
-  // Pick image from gallery
-  Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+  Future<void> _loadLocalImagesFromPictures() async {
+    const picturesPath = '/storage/emulated/0/Pictures';
+    final picturesDir = Directory(picturesPath);
+
+    if (await picturesDir.exists()) {
+      final files = picturesDir.listSync();
+      final imageFiles = files.where((file) {
+        final ext = file.path.toLowerCase();
+        return file is File &&
+            (ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.png'));
+      }).toList();
+
       setState(() {
-        _selectedImage = File(pickedFile.path);
-        _localImages.add(_selectedImage!);
+        _localImages = imageFiles.cast<File>();
       });
+    } else {
+      print("Pictures directory not found.");
     }
   }
 
-  // Upload images to S3 bucket
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final imageFile = File(pickedFile.path);
+      setState(() {
+        _selectedImage = imageFile;
+      });
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: Image.file(imageFile, fit: BoxFit.cover),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  _uploadImage(); // Upload selected image
+                },
+                child: const Text('Upload'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
   Future<void> _uploadImage() async {
     if (_selectedImage == null) return;
 
@@ -60,49 +96,67 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'file_name': fileName, // Use the formatted file name
+          'file_name': fileName,
           'body': base64String,
         }),
       );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Image uploaded successfully")),
+          const SnackBar(content: Text("Image uploaded successfully")),
         );
-        _fetchCloudImages(); // Reload cloud images after uploading
+
+        final cloudImageURL = await _fetchCloudImageURL(fileName);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditingImages(imageUrl: cloudImageURL),
+          ),
+        );
+        await _fetchCloudImages(); // Refresh after coming back
+        await _loadLocalImagesFromPictures();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to upload image")),
+          SnackBar(content: Text("Failed to upload: ${response.body}")),
         );
       }
     } catch (e) {
-      print('Error uploading image: $e');
+      print("Error uploading image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error uploading image")),
+        const SnackBar(content: Text("Error uploading image")),
       );
     }
   }
 
-  // Fetch cloud images from S3
+  Future<String> _fetchCloudImageURL(String fileName) async {
+    try {
+      final urlOperation = await Amplify.Storage.getUrl(path: StoragePath.fromString(fileName));
+      final urlResult = await urlOperation.result;
+      return urlResult.url.toString();
+    } catch (e) {
+      print("Error fetching cloud image URL: $e");
+      return "";
+    }
+  }
+
   Future<void> _fetchCloudImages() async {
     try {
       final user = await Amplify.Auth.getCurrentUser();
       final userID = user.userId;
 
-      // get all files under the path 'userID'
       final operation = Amplify.Storage.list(path: StoragePath.fromString(userID));
       final result = await operation.result;
-      // Filter files by userID
+
       final filteredFiles = result.items
           .where((item) => item.path.startsWith(userID))
-        .toList();
+          .toList();
 
-      // Get URLs for the filtered files
       final List<String> imageUrls = [];
       for (var file in filteredFiles) {
         final urlOperation = await Amplify.Storage.getUrl(path: StoragePath.fromString(file.path));
         final urlResult = await urlOperation.result;
-        imageUrls.add(urlResult.url.toString()); // Add the file URL to the list
+        imageUrls.add(urlResult.url.toString());
       }
 
       setState(() {
@@ -123,10 +177,10 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Photos"),
+        title: const Text("Photos"),
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
+          tabs: const [
             Tab(text: "Local"),
             Tab(text: "Cloud"),
           ],
@@ -135,72 +189,76 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Local Images Tab
-          Center(
-            child: _localImages.isEmpty
-                ? Text("No local images available.")
-                : GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3, 
-                      crossAxisSpacing: 8.0,
-                      mainAxisSpacing: 8.0,
-                    ),
-                    itemCount: _localImages.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () {
-                          // Navigate to EditingImages page when tapped
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditingImages(imageUrl: _localImages[index].path),
-                            ),
-                          );
-                        },
-                        child: Image.file(_localImages[index]),
-                      );
-                    },
+          _localImages.isEmpty
+              ? const Center(child: Text("No local images available."))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8.0,
+                    mainAxisSpacing: 8.0,
                   ),
-          ),
-          // Cloud Images Tab
-          Center(
-            child: _cloudImageURLs.isEmpty
-                ? Text("No cloud images available.")
-                : GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3, 
-                      crossAxisSpacing: 8.0,
-                      mainAxisSpacing: 8.0,
-                    ),
-                    itemCount: _cloudImageURLs.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () {
-                          // Navigate to EditingImages page when tapped
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditingImages(imageUrl: _cloudImageURLs[index]),
-                            ),
-                          );
-                        },
-                        child: Image.network(_cloudImageURLs[index]),
-                      );
-                    },
+                  itemCount: _localImages.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () {
+                        final selected = _localImages[index];
+
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              content: Image.file(selected, fit: BoxFit.cover),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedImage = selected;
+                                    });
+                                    Navigator.pop(context);
+                                    _uploadImage();
+                                  },
+                                  child: const Text('Upload'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                      child: Image.file(_localImages[index], fit: BoxFit.cover),
+                    );
+                  },
+                ),
+          _cloudImageURLs.isEmpty
+              ? const Center(child: Text("No cloud images available."))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8.0,
+                    mainAxisSpacing: 8.0,
                   ),
-          ),
+                  itemCount: _cloudImageURLs.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditingImages(imageUrl: _cloudImageURLs[index]),
+                          ),
+                        );
+                      },
+                      child: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),
+                    );
+                  },
+                ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _pickImage,
         tooltip: 'Select Image',
-        child: Icon(Icons.add_a_photo),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: IconButton(
-          icon: Icon(Icons.upload_file),
-          onPressed: _uploadImage,
-        ),
+        child: const Icon(Icons.add_a_photo),
       ),
     );
   }
