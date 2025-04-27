@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:cloud_lens/database.dart'; 
 
 class EditPage extends StatefulWidget {
   final Uint8List imageBytes;
@@ -16,106 +18,176 @@ class _EditPageState extends State<EditPage> {
   String? _editedImageUrl;
   bool _isProcessing = false;
 
-  // API end points
-  final Map<String, String> apiMap = {
-    'Invert Colors': 'https://zh50419t6e.execute-api.us-east-1.amazonaws.com/default/invertImage',
-    'Greyscale': 'https://k8pat6qwxi.execute-api.us-east-1.amazonaws.com/default/greyscaleImage',
-  
-  };
+  final String lambdaEndpoint = 'https://rxig6sxm4d.execute-api.us-east-1.amazonaws.com/default/photoEdits';
 
-  // processing methods
-  Future<void> _applyEdit(String methodName) async {
-  setState(() => _isProcessing = true);
+  final List<String> editOptions = [
+    'invert',
+    'grayscale',
+    'blur',
+    'edge',
+    'flip',
+    'brightness',
+    'contrast',
+    'sharpen',
+    'sepia',
+    'pencil',
+    'threshold',
+    'emboss',
+  ];
 
-  final fileName = '${methodName.toLowerCase().replaceAll(" ", "_")}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-  final base64Body = base64Encode(widget.imageBytes);
-  final url = apiMap[methodName]!;
-
-  final payload = {
-    'file_name': fileName,
-    'body': base64Body,
-  };
-
-  print("📤 POST to $url");
-  print("📄 Payload: $payload");
-
-  final response = await http.post(
-    Uri.parse(url),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode(payload),
-  );
-
-  setState(() => _isProcessing = false);
-
-  if (response.statusCode == 200) {
-    final body = jsonDecode(response.body);
-    setState(() => _editedImageUrl = body['url']);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("❌ Failed: ${response.body}")),
+  Future<Uint8List> _compressImage(Uint8List originalBytes) async {
+    return await FlutterImageCompress.compressWithList(
+      originalBytes,
+      quality: 75,
+      minWidth: 1024,
+      minHeight: 1024,
     );
   }
-}
 
-  //save images
+  Future<void> _applyEdit(String operation) async {
+    setState(() => _isProcessing = true);
+
+    final fileName = '${operation}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final compressedBytes = await _compressImage(widget.imageBytes);
+    final base64Body = base64Encode(compressedBytes);
+
+    final payload = {
+      'file_name': fileName,
+      'body': base64Body,
+      'operation': operation,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(lambdaEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        setState(() => _editedImageUrl = body['url']);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      print('❌ Error: $e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _saveImage() async {
     if (_editedImageUrl == null) return;
     try {
       final response = await http.get(Uri.parse(_editedImageUrl!));
       final Uint8List bytes = response.bodyBytes;
-      final result = await ImageGallerySaverPlus.saveImage(
+      await ImageGallerySaverPlus.saveImage(
         bytes,
         name: 'cloudlens_${DateTime.now().millisecondsSinceEpoch}',
         quality: 100,
       );
-      if ((result['isSuccess'] ?? false) == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Successfully saved")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Failed to save")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Successfully saved to gallery")),
+      );
     } catch (e) {
-      print("save error: $e");
+      print('save error: $e');
+    }
+  }
+
+  Future<void> _saveToFavorites() async {
+    if (_editedImageUrl != null) {
+      await DBHelper.insertFavorite(_editedImageUrl!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Added to Favorites")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Image')),
+      appBar: AppBar(
+        title: const Text(
+          'Edit Image',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color.fromARGB(255, 84, 152, 247),
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _editedImageUrl != null
             ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.network(_editedImageUrl!),
-                  const SizedBox(height: 10),
+                  Expanded(
+                    child: Image.network(_editedImageUrl!, fit: BoxFit.contain),
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: _saveImage,
                     icon: const Icon(Icons.download),
                     label: const Text("Save to Gallery"),
+                    style: _buttonStyle(),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: _saveToFavorites,
+                    icon: const Icon(Icons.favorite),
+                    label: const Text("Add to Favorites"),
+                    style: _buttonStyle(color: Colors.pinkAccent),
                   ),
                 ],
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text("Choose an edit method:"),
+                  const Text(
+                    "Choose a Filter:",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 16),
-                  ...apiMap.keys.map(
-                    (methodName) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ElevatedButton(
-                        onPressed: _isProcessing ? null : () => _applyEdit(methodName),
-                        child: Text(methodName),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: editOptions.map((method) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: ElevatedButton(
+                              onPressed: _isProcessing ? null : () => _applyEdit(method),
+                              child: Text(
+                                method.toUpperCase(),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              style: _buttonStyle(),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  ButtonStyle _buttonStyle({Color color = const Color.fromARGB(255, 84, 152, 247)}) {
+    return ElevatedButton.styleFrom(
+      minimumSize: const Size(double.infinity, 50),
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      elevation: 5,
+      textStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
     );
   }

@@ -1,8 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_lens/Pages/edit_page.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 class PhotosPage extends StatefulWidget {
@@ -13,14 +11,11 @@ class PhotosPage extends StatefulWidget {
 }
 
 class _PhotosPageState extends State<PhotosPage> {
-  File? _selectedImage;
-
-  // select an image 
   Future<void> _pickImage() async {
     try {
       final file = await ImagePicker().pickImage(source: ImageSource.gallery);
       if (file != null) {
-        final bytes = await File(file.path).readAsBytes();
+        final bytes = await file.readAsBytes();
         if (!mounted) return;
         Navigator.push(
           context,
@@ -29,37 +24,8 @@ class _PhotosPageState extends State<PhotosPage> {
           ),
         );
       } else {
-        print("❌ no image selected");
+        print("❌ No image selected");
       }
-    } catch (e) {
-      print("❌ Error: $e");
-    }
-  }
-
-  // upload images
-  Future<void> _uploadImage() async {
-    if (_selectedImage == null) return;
-
-    try {
-      final bytes = await _selectedImage!.readAsBytes();
-
-      final url = 'https://s8fac61i71.execute-api.us-east-1.amazonaws.com/default/S3BucketUpload/upload';
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'file_name': 'image_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          'body': base64Encode(bytes),
-        }),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.statusCode == 200
-              ? "✅ successfully uploaded"
-              : "❌ failed to upload: ${response.body}"),
-        ),
-      );
     } catch (e) {
       print("❌ Error: $e");
     }
@@ -68,18 +34,47 @@ class _PhotosPageState extends State<PhotosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Photos")),
+      appBar: AppBar(
+        title: const Text(
+          "Photos",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color.fromARGB(255, 84, 152, 247),
+        foregroundColor: Colors.white,
+      ),
       body: Center(
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.add_a_photo),
-          label: const Text("Select Image"),
-          onPressed: _pickImage,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: const Text(
+            "No image selected",
+            style: TextStyle(fontSize: 18),
+          ),
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        child: IconButton(
-          icon: const Icon(Icons.upload_file),
-          onPressed: _uploadImage,
+        color: Colors.transparent,
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: ElevatedButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.image),
+            label: const Text("Select Image"),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              backgroundColor: const Color.fromARGB(255, 84, 152, 247),
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 5,
+            ),
+          ),
         ),
       ),
     );
