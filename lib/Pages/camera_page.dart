@@ -89,45 +89,68 @@ class _CameraPageState extends State<CameraPage> {
           future: _initControllerFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
-              return Stack(
+              return Column(
                 children: [
-                  Column(
-                    children: [
-                      Expanded(
-                        child: AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: CameraPreview(_controller),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20.0),
-                        child: Center(
-                          child: IconButton(
-                            onPressed: onCameraPressed,
-                            iconSize: 70,
-                            icon: const Icon(Icons.camera_alt),
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                      child: CameraPreview(_controller)
                   ),
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: IconButton(
-                      onPressed: _switchCamera,
-                      icon: const Icon(Icons.cameraswitch),
-                      iconSize: 40,
-                      color: Colors.white,
-                      style: IconButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(128, 0, 0, 0),
-                        shape: const CircleBorder(),
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF8EC5FC), Color(0xFFE0C3FC)],
                       ),
                     ),
-                  ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Stack(
+                        children: [
+                          Align(
+                            alignment: Alignment.center,
+                            child: GestureDetector(
+                              onTap: onCameraPressed,
+                              child: Container(
+                                width: 60.0,
+                                height: 60.0,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.deepPurple,
+                                    width: 3.0,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 50.0,
+                                    height: 50.0,
+                                    decoration: BoxDecoration(
+                                      color: Color.fromARGB(255, 255, 87, 51),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 50,
+                            child: IconButton(
+                              onPressed: _switchCamera,
+                              icon: Icon(Icons.flip_camera_android),
+                              iconSize: 50,
+                              color: Colors.deepPurple
+                            )
+                          ),
+
+                        ],
+                      ),
+                    )
+                  )
                 ],
               );
+
             } else {
               return const Center(child: CircularProgressIndicator());
             }
