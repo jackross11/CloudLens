@@ -108,7 +108,7 @@ class _EditingImagesState extends State<EditingImages> {
         quality: 100,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Successfully saved to gallery")),
+        const SnackBar(content: Text("Successfully saved to gallery")),
       );
     } catch (e) {
       print('Save error: $e');
@@ -116,10 +116,23 @@ class _EditingImagesState extends State<EditingImages> {
   }
 
   Future<void> _saveToFavorites() async {
-    if (editedImageUrl != null) {
-      await DBHelper.insertFavorite(editedImageUrl!);
+    String urlToSave = editedImageUrl ?? widget.imageUrl;  
+    print('Attempting to save URL: $urlToSave'); // Debugging line
+    if (urlToSave.isNotEmpty) {
+      try {
+        await DBHelper.insertFavorite(urlToSave);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Added to Favorites")),
+        );
+      } catch (e) {
+        print("Error saving to favorites: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Failed to add to favorites")),
+        );
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Added to Favorites")),
+        const SnackBar(content: Text("❌ No image to save to favorites")),
       );
     }
   }

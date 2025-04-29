@@ -3,6 +3,7 @@ import 'package:cloud_lens/Pages/camera_page.dart';
 import 'package:cloud_lens/Pages/favorites_page.dart';
 import 'package:cloud_lens/Pages/photos_page.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 
 class MainPage extends StatefulWidget {
@@ -22,7 +23,6 @@ class _MainPageState extends State<MainPage> {
   // Initialize the cameras
   Future<void> initializeCameras() async {
     try {
-      // Get available cameras on the device
       cameras = await availableCameras();
       setState(() {});
     } catch (e) {
@@ -30,6 +30,7 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
+  // Get current user's email
   Future<void> _getCurrentUser() async {
     try {
       final user = await Amplify.Auth.getCurrentUser();
@@ -47,46 +48,66 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
-    initializeCameras(); // Call initializeCameras when the page loads
+    initializeCameras();
     _getCurrentUser();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFE0F7FA), Color(0xFFFFFFFF)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: cameras.isEmpty
+            ? Center(child: CircularProgressIndicator()) // Show loading while initializing cameras
+            : [
+                const PhotosPage(),
+                const FavoritesPage(),
+                CameraPage(cameras: cameras), // Pass cameras to the CameraPage
+              ][_pageIndex], // Display the selected page based on _pageIndex
+      ),
       appBar: AppBar(
         title: Text(_userEmail.isNotEmpty ? _userEmail : "Loading..."),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
             onPressed: () async {
-              // Use the sign-out callback to sign the user out
-              await widget.signOutCallback(context);
+              await widget.signOutCallback(context); // Sign out logic
             },
           ),
         ],
       ),
-      body: cameras.isEmpty
-          ? Center(child: CircularProgressIndicator()) // Show loading while initializing cameras
-          : [
-              const PhotosPage(),
-              const FavoritesPage(),
-              CameraPage(cameras: cameras), // Pass cameras to the CameraPage
-            ][_pageIndex], // Display the selected page based on _pageIndex
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.image), label: "Photos"),
-          BottomNavigationBarItem(icon: Icon(Icons.star), label: "Favorites"),
-          BottomNavigationBarItem(icon: Icon(Icons.camera), label: "Camera"),
-        ],
-        onTap: (index) {
-          setState(() {
-            _pageIndex = index; // Switch pages based on the tab clicked
-          });
-        },
-        currentIndex: _pageIndex, // Ensure correct tab is highlighted
-        unselectedItemColor: Colors.deepPurple.shade200,
-        fixedColor: Colors.deepPurple,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(color: Colors.black12, blurRadius: 8),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.deepPurple,
+          unselectedItemColor: Colors.deepPurple.shade200,
+          selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w400),
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.image), label: "Photos"),
+            BottomNavigationBarItem(icon: Icon(Icons.star), label: "Favorites"),
+            BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
+          ],
+          onTap: (index) {
+            setState(() {
+              _pageIndex = index; // Switch pages based on the tab clicked
+            });
+          },
+          currentIndex: _pageIndex, // Ensure the correct tab is highlighted
+        ),
       ),
     );
   }

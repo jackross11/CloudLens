@@ -6,6 +6,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_lens/Pages/editing_page.dart';
+import 'package:cloud_lens/database.dart'; // For DBHelper.insertFavorite
 
 class PhotosPage extends StatefulWidget {
   const PhotosPage({super.key});
@@ -45,8 +46,6 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
       setState(() {
         _localImages = imageFiles.cast<File>();
       });
-    } else {
-      print("Pictures directory not found.");
     }
   }
 
@@ -60,20 +59,7 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
 
       showDialog(
         context: context,
-        builder: (context) {
-          return AlertDialog(
-            content: Image.file(imageFile, fit: BoxFit.cover),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _uploadImage();
-                },
-                child: const Text('Upload and Edit'),
-              ),
-            ],
-          );
-        },
+        builder: (context) => _buildLocalImageDialog(imageFile),
       );
     }
   }
@@ -102,31 +88,18 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Image uploaded successfully")),
-        );
-
         final cloudImageURL = await _fetchCloudImageURL(fileName);
-
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => EditingImages(imageUrl: cloudImageURL),
           ),
         );
-
         await _fetchCloudImages();
         await _loadLocalImagesFromPictures();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to upload: ${response.body}")),
-        );
       }
     } catch (e) {
       print("Error uploading image: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error uploading image")),
-      );
     }
   }
 
@@ -179,125 +152,151 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
       setState(() {
         _cloudImageURLs.remove(fileUrl);
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Image deleted from cloud")),
-      );
     } catch (e) {
       print("Error deleting image: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error deleting image")),
-      );
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Future<void> _saveToFavorites(String url) async {
+    if (url.isNotEmpty) {
+      try {
+        await DBHelper.insertFavorite(url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Added to Favorites")),
+        );
+      } catch (e) {
+        print("Error saving to favorites: $e");
+      }
+    }
+  }
+
+  AlertDialog _buildLocalImageDialog(File imageFile) {
+  return AlertDialog(
+    content: Image.file(imageFile, fit: BoxFit.cover),
+    actions: [
+      Row(
+        children: [
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedImage = imageFile;
+              });
+              Navigator.pop(context);
+              _uploadImage();
+            },
+            child: const Text('Upload and Edit'),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+  AlertDialog _buildCloudImageDialog(String imageUrl) {
+    return AlertDialog(
+      content: Image.network(imageUrl, fit: BoxFit.cover),
+      actions: [
+        Row(
+          children: [
+            TextButton(
+              onPressed: () async => await _saveToFavorites(imageUrl),
+              child: const Text('Favorite'),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EditingImages(imageUrl: imageUrl)),
+                );
+              },
+              child: const Text('Edit'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await _deleteCloudImage(imageUrl);
+                Navigator.pop(context);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Photos"),
+        toolbarHeight: 0,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: "Local"),
-            Tab(text: "Cloud"),
-          ],
+          tabs: const [Tab(text: "Local"), Tab(text: "Cloud")],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Stack(
         children: [
-          _localImages.isEmpty
-              ? const Center(child: Text("No local images available."))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8.0,
-                    mainAxisSpacing: 8.0,
-                  ),
-                  itemCount: _localImages.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        final selected = _localImages[index];
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              content: Image.file(selected, fit: BoxFit.cover),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedImage = selected;
-                                    });
-                                    Navigator.pop(context);
-                                    _uploadImage();
-                                  },
-                                  child: const Text('Upload and Edit'),
-                                ),
-                              ],
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF8EC5FC), Color(0xFFE0C3FC)],
+              ),
+            ),
+          ),
+          TabBarView(
+            controller: _tabController,
+            children: [
+              _localImages.isEmpty
+                  ? const Center(child: Text("No local images available."))
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8.0,
+                        mainAxisSpacing: 8.0,
+                      ),
+                      itemCount: _localImages.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            final selected = _localImages[index];
+                            showDialog(
+                              context: context,
+                              builder: (context) => _buildLocalImageDialog(selected),
                             );
                           },
+                          child: Image.file(_localImages[index], fit: BoxFit.cover),
                         );
                       },
-                      child: Image.file(_localImages[index], fit: BoxFit.cover),
-                    );
-                  },
-                ),
-          _cloudImageURLs.isEmpty
-              ? const Center(child: Text("No cloud images available."))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8.0,
-                    mainAxisSpacing: 8.0,
-                  ),
-                  itemCount: _cloudImageURLs.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              content: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => EditingImages(imageUrl: _cloudImageURLs[index]),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text('Edit'),
-                                ),
-                                TextButton(
-                                  onPressed: () async {
-                                    await _deleteCloudImage(_cloudImageURLs[index]);
-                                    Navigator.pop(context);
-                                  },
-                                  child: const Text('Delete'),
-                                ),
-                              ],
+                    ),
+              _cloudImageURLs.isEmpty
+                  ? const Center(child: Text("No cloud images available."))
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8.0,
+                        mainAxisSpacing: 8.0,
+                      ),
+                      itemCount: _cloudImageURLs.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => _buildCloudImageDialog(_cloudImageURLs[index]),
                             );
                           },
+                          child: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),
                         );
                       },
-                      child: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),
-                    );
-                  },
-                ),
+                    ),
+            ],
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -306,5 +305,11 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
         child: const Icon(Icons.add_a_photo),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }

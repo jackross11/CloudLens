@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:cloud_lens/Pages/main_page.dart';  // Assuming you're navigating here on successful signup
+import 'package:cloud_lens/Pages/main_page.dart'; // Assuming you're navigating here on successful signup
 import 'package:cloud_lens/Pages/login.dart';
 
 class SignupPage extends StatefulWidget {
@@ -18,21 +18,18 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> signUp(String email, String password) async {
     try {
-      // Call Amplify Auth to sign up the user
       final result = await Amplify.Auth.signUp(
         username: email,
         password: password,
         options: SignUpOptions(
           userAttributes: {
-            CognitoUserAttributeKey.email: email, // Directly passing the email
+            CognitoUserAttributeKey.email: email,
           },
         ),
       );
 
-      // Check if sign-up is complete
       if (result.isSignUpComplete) {
         print("Signup successful!");
-        // Navigate to the next page, for example, FavoritesPage
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => MainPage(signOutCallback: widget.signOutCallback)),
@@ -51,171 +48,176 @@ class _SignupPageState extends State<SignupPage> {
   void navigateToSignInPage() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage(signOutCallback: widget.signOutCallback)), // Assuming you have a SignInPage
+      MaterialPageRoute(builder: (context) => LoginPage(signOutCallback: widget.signOutCallback)),
     );
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: Text('Signup')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child:
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // page icon
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 30.0),
-                child:
-                Center(
-                  child:
-                  Image.asset(
-                    'assets/icon.png',
-                    height: 175.0,
-                    width: 175.0,
-                  ),
-                ),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Signup'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          // Gradient background
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF8EC5FC), // Light blue
+                  Color(0xFFE0C3FC), // Soft purple
+                ],
               ),
-
-              // email input
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30.0),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
+            ),
+          ),
+          // Foreground content
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Page icon
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 30.0),
+                    child: Image.asset(
+                      'assets/icon.png',
+                      height: 175.0,
+                      width: 175.0,
+                    ),
+                  ),
+                  // Email input
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
                           spreadRadius: 2,
                           blurRadius: 5,
-                          offset: Offset(0, 2)
-                      )
-                    ]
-                ),
-                child:
-                TextField(
-                  decoration: InputDecoration(
-                    icon: Icon(
-                      Icons.email,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
                     ),
-                    hintText: "Email",
-                  ),
-                  controller: emailController,
-                ),
-              ),
-              SizedBox(height: 20.0),
-
-              // password input
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30.0),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                          offset: Offset(0, 2)
-                      )
-                    ]
-                ),
-                child:
-                TextField(
-                  controller: passwordController,
-                  decoration: InputDecoration(
-                    icon: Icon(
-                      Icons.lock,
-                    ),
-                    hintText: "Password",
-                  ),
-                  obscureText: true,
-                ),
-              ),
-              SizedBox(height: 30),
-
-              // sign up button
-              ElevatedButton(
-                onPressed: () {
-                  String email = emailController.text.trim();
-                  String password = passwordController.text.trim();
-
-                  if (email.isEmpty || password.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please fill in both fields')),
-                    );
-                    return;
-                  }
-
-                  signUp(email, password);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    elevation: 5.0,
-                    minimumSize: Size(double.infinity, 45)
-                ),
-                child: Text(
-                  'Sign Up',
-                  style: TextStyle(
-                      fontSize: 15.0,
-                      fontWeight: FontWeight.bold
-                  ),
-                ),
-              ),
-              SizedBox(height: 15.0),
-
-              // divider
-              Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                          margin: const EdgeInsets.only(left: 10.0, right: 20.0),
-                          child: Divider(
-                            color: Colors.deepPurple,
-                            height: 36,
-                          )),
-                    ),
-                    Text(
-                      "OR",
-                      style: TextStyle(
-                        color: Colors.deepPurple,
+                    child: TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(
+                        icon: Icon(Icons.email),
+                        hintText: "Email",
+                        border: InputBorder.none,
                       ),
                     ),
-                    Expanded(
-                      child: Container(
-                          margin: const EdgeInsets.only(left: 20.0, right: 10.0),
-                          child: Divider(
-                            color: Colors.deepPurple,
-                            height: 36,
-                          )),
-                    ),
-                  ]
-              ),
-              SizedBox(height: 15.0),
-
-              // login button
-              ElevatedButton(
-                onPressed: navigateToSignInPage,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    elevation: 5.0,
-                    minimumSize: Size(double.infinity, 45)
-                ),
-                child: Text(
-                  'Login',
-                  style: TextStyle(
-                      fontSize: 15.0,
-                      fontWeight: FontWeight.bold
                   ),
-                ),
+                  const SizedBox(height: 20.0),
+                  // Password input
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: TextField(
+                      controller: passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        icon: Icon(Icons.lock),
+                        hintText: "Password",
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  // Sign Up button
+                  ElevatedButton(
+                    onPressed: () {
+                      String email = emailController.text.trim();
+                      String password = passwordController.text.trim();
+
+                      if (email.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please fill in both fields')),
+                        );
+                        return;
+                      }
+
+                      signUp(email, password);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      elevation: 5.0,
+                      minimumSize: const Size(double.infinity, 45),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 15.0),
+                  // Divider
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.only(left: 10.0, right: 20.0),
+                          child: const Divider(color: Colors.deepPurple),
+                        ),
+                      ),
+                      const Text(
+                        "OR",
+                        style: TextStyle(color: Colors.deepPurple),
+                      ),
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.only(left: 20.0, right: 10.0),
+                          child: const Divider(color: Colors.deepPurple),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15.0),
+                  // Login button
+                  ElevatedButton(
+                    onPressed: navigateToSignInPage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      elevation: 5.0,
+                      minimumSize: const Size(double.infinity, 45),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
-            ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
