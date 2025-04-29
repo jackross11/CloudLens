@@ -1,10 +1,10 @@
-import 'dart:io';
-import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:cloud_lens/database.dart'; // only if you use _saveToFavorites
 
 class EditingImages extends StatefulWidget {
   final String imageUrl;
@@ -17,60 +17,73 @@ class EditingImages extends StatefulWidget {
 
 class _EditingImagesState extends State<EditingImages> {
   Uint8List? editedImageBytes;
-  String? newFileName;
+  String? editedImageUrl;
   bool isLoading = false;
 
-  /// Call AWS Lambda with image and operation
-  Future<void> callLambda(String operation) async {
+  final String lambdaEndpoint = 'https://rxig6sxm4d.execute-api.us-east-1.amazonaws.com/default/photoEdits';
+
+  final List<String> editOptions = [
+    'invert',
+    'grayscale',
+    'blur',
+    'edge',
+    'flip',
+    'brightness',
+    'contrast',
+    'sharpen',
+    'sepia',
+    'pencil',
+    'threshold',
+    'emboss',
+  ];
+
+  Future<Uint8List> _compressImage(Uint8List originalBytes) async {
+    return await FlutterImageCompress.compressWithList(
+      originalBytes,
+      quality: 75,
+      minWidth: 1024,
+      minHeight: 1024,
+    );
+  }
+
+  Future<void> _applyEdit(String operation) async {
     setState(() => isLoading = true);
 
-    final imageResponse = await http.get(Uri.parse(widget.imageUrl));
-    if (imageResponse.statusCode != 200) {
-      print('Failed to load original image');
-      setState(() => isLoading = false);
-      return;
-    }
-
-    final Uint8List imageBytes = imageResponse.bodyBytes;
-    String base64Image = base64Encode(imageBytes);
-
-    if (base64Image.startsWith('data:image')) {
-      base64Image = base64Image.split(',').last;
-    }
-
-    String lambdaUrl = 'https://ivi524iedl.execute-api.us-east-1.amazonaws.com/default/GreyScale/greyscale';
-    final fileName = widget.imageUrl.split('/').last;
-
     try {
-      print('Sending to Lambda:\nfile_name: $fileName\nbase64 length: ${base64Image.length}');
+      final originalResponse = await http.get(Uri.parse(widget.imageUrl));
+      if (originalResponse.statusCode != 200) {
+        print('Failed to load original image');
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final compressedBytes = await _compressImage(originalResponse.bodyBytes);
+      final base64Body = base64Encode(compressedBytes);
+
+      final fileName = '${operation}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final payload = {
+        'file_name': fileName,
+        'body': base64Body,
+        'operation': operation,
+      };
 
       final response = await http.post(
-        Uri.parse(lambdaUrl),
+        Uri.parse(lambdaEndpoint),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'operation': operation,
-          'file_name': fileName,
-          'body': base64Image,
-        }),
+        body: jsonEncode(payload),
       );
 
-      print("Lambda response: ${response.body}");
-
       if (response.statusCode == 200) {
-        final body = json.decode(response.body);
-        final String base64Edited = body['body'];
-        final Map<String, dynamic> innerBody = json.decode(base64Edited);
-
-        final String base64EditedImage = innerBody['edited_image'];
-        final String returnedFileName = innerBody['file_name'];
-
-        print('Received new file name: $returnedFileName');
-        print('Received base64 image of length: ${base64EditedImage.length}');
-
+        final body = jsonDecode(response.body);
         setState(() {
-          editedImageBytes = base64Decode(base64EditedImage);
-          newFileName = returnedFileName;
+          editedImageUrl = body['url'];
+          editedImageBytes = null; // Clear memory version when switching to network
         });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Failed: ${response.body}")),
+        );
       }
     } catch (e) {
       print('Error calling Lambda: $e');
@@ -79,79 +92,114 @@ class _EditingImagesState extends State<EditingImages> {
     setState(() => isLoading = false);
   }
 
-  /// Save image to gallery
   Future<void> _saveImage() async {
-    if (editedImageBytes == null) return;
+    if (editedImageBytes == null && editedImageUrl == null) return;
     try {
-      final result = await ImageGallerySaverPlus.saveImage(
-        editedImageBytes!,
+      Uint8List bytes;
+      if (editedImageBytes != null) {
+        bytes = editedImageBytes!;
+      } else {
+        final response = await http.get(Uri.parse(editedImageUrl!));
+        bytes = response.bodyBytes;
+      }
+      await ImageGallerySaverPlus.saveImage(
+        bytes,
         name: 'cloudlens_${DateTime.now().millisecondsSinceEpoch}',
         quality: 100,
       );
-      if ((result['isSuccess'] ?? false) == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Successfully saved")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to save")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Successfully saved to gallery")),
+      );
     } catch (e) {
-      print("save error: $e");
+      print('Save error: $e');
+    }
+  }
+
+  Future<void> _saveToFavorites() async {
+    if (editedImageUrl != null) {
+      await DBHelper.insertFavorite(editedImageUrl!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Added to Favorites")),
+      );
     }
   }
 
   @override
-Widget build(BuildContext context) {
-  final bool hasEditedImage = editedImageBytes != null;
-  final displayImage = hasEditedImage
-      ? Image.memory(editedImageBytes!)
-      : Image.network(widget.imageUrl);
+  Widget build(BuildContext context) {
+    final displayImage = editedImageBytes != null
+        ? Image.memory(editedImageBytes!)
+        : editedImageUrl != null
+            ? Image.network(editedImageUrl!)
+            : Image.network(widget.imageUrl);
 
-  return Scaffold(
-    appBar: AppBar(title: const Text('Edit Image')),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          displayImage,
-          const SizedBox(height: 20),
-          if (hasEditedImage)
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Image'),
+        backgroundColor: const Color.fromARGB(255, 84, 152, 247),
+        foregroundColor: Colors.white,
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: displayImage),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _saveImage,
               icon: const Icon(Icons.download),
               label: const Text("Save to Gallery"),
+              style: _buttonStyle(),
             ),
-          const SizedBox(height: 20),
-          const Text("Choose an edit method:", style: TextStyle(fontSize: 16)),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: isLoading ? null : () => callLambda('grayscale'),
-            child: const Text('Grayscale'),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: isLoading ? null : () => callLambda('resize'),
-            child: const Text('Resize'),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: isLoading ? null : () => callLambda('negative'),
-            child: const Text('Negative'),
-          ),
-          if (newFileName != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Center(
-                child: Text("New file name: $newFileName",
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic)),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: _saveToFavorites,
+              icon: const Icon(Icons.favorite),
+              label: const Text("Add to Favorites"),
+              style: _buttonStyle(color: Colors.pinkAccent),
+            ),
+            const SizedBox(height: 20),
+            const Text("Choose a Filter:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: editOptions.map((method) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : () => _applyEdit(method),
+                        child: Text(
+                          method.toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: _buttonStyle(),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  ButtonStyle _buttonStyle({Color color = const Color.fromARGB(255, 84, 152, 247)}) {
+    return ElevatedButton.styleFrom(
+      minimumSize: const Size(double.infinity, 50),
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      elevation: 5,
+      textStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
 }

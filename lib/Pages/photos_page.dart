@@ -66,10 +66,10 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  _uploadImage(); // Upload selected image
+                  Navigator.pop(context);
+                  _uploadImage();
                 },
-                child: const Text('Upload'),
+                child: const Text('Upload and Edit'),
               ),
             ],
           );
@@ -114,7 +114,8 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
             builder: (context) => EditingImages(imageUrl: cloudImageURL),
           ),
         );
-        await _fetchCloudImages(); // Refresh after coming back
+
+        await _fetchCloudImages();
         await _loadLocalImagesFromPictures();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,6 +168,29 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _deleteCloudImage(String fileUrl) async {
+    try {
+      Uri uri = Uri.parse(fileUrl);
+      String path = uri.path;
+      String fileName = path.split('/').last;
+
+      await Amplify.Storage.remove(path: StoragePath.fromString(fileName));
+
+      setState(() {
+        _cloudImageURLs.remove(fileUrl);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Image deleted from cloud")),
+      );
+    } catch (e) {
+      print("Error deleting image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error deleting image")),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -203,7 +227,6 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
                     return GestureDetector(
                       onTap: () {
                         final selected = _localImages[index];
-
                         showDialog(
                           context: context,
                           builder: (context) {
@@ -218,7 +241,7 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
                                     Navigator.pop(context);
                                     _uploadImage();
                                   },
-                                  child: const Text('Upload'),
+                                  child: const Text('Upload and Edit'),
                                 ),
                               ],
                             );
@@ -242,11 +265,33 @@ class _PhotosPageState extends State<PhotosPage> with SingleTickerProviderStateM
                   itemBuilder: (context, index) {
                     return GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditingImages(imageUrl: _cloudImageURLs[index]),
-                          ),
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              content: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => EditingImages(imageUrl: _cloudImageURLs[index]),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Edit'),
+                                ),
+                                TextButton(
+                                  onPressed: () async {
+                                    await _deleteCloudImage(_cloudImageURLs[index]);
+                                    Navigator.pop(context);
+                                  },
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            );
+                          },
                         );
                       },
                       child: Image.network(_cloudImageURLs[index], fit: BoxFit.cover),

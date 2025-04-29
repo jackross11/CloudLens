@@ -36,13 +36,15 @@ dependencies:
   flutter_dotenv: ^5.0.2
   camera: ^0.11.1
   image_picker: ^1.1.2
-  path_provider: ^2.0.9
-  dio: ^5.0.0 # Or the latest version
+  path_provider: ^2.0.14
+  dio: ^5.0.0
   shared_preferences: ^2.1.4 
   universal_html: ^2.0.8
   url_launcher: ^6.2.1
   image_gallery_saver_plus: ^4.0.0
   permission_handler: ^11.0.1
+  flutter_image_compress: ^2.1.0
+  sqflite: ^2.3.0
 
 dependency_overrides:
   shared_preferences_linux: null

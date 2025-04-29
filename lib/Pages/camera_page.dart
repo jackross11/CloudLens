@@ -1,10 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
-import 'package:flutter/services.dart';
 
 class CameraPage extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -83,20 +81,6 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  void onPhotoLibraryPressed() async {
-    try {
-      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        print('Selected image from gallery: ${image.path}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Image selected: ${image.path}')),
-        );
-      }
-    } catch (e) {
-      print('Unable to select an image: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,51 +89,47 @@ class _CameraPageState extends State<CameraPage> {
           future: _initControllerFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
-              return Column(
+              return Stack(
                 children: [
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: _controller.value.aspectRatio,
-                      child: CameraPreview(_controller),
+                  Column(
+                    children: [
+                      Expanded(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: CameraPreview(_controller),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20.0),
+                        child: Center(
+                          child: IconButton(
+                            onPressed: onCameraPressed,
+                            iconSize: 70,
+                            icon: const Icon(Icons.camera_alt),
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: IconButton(
+                      onPressed: _switchCamera,
+                      icon: const Icon(Icons.cameraswitch),
+                      iconSize: 40,
+                      color: Colors.white,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(128, 0, 0, 0),
+                        shape: const CircleBorder(),
+                      ),
                     ),
                   ),
-                  // Buttons and text
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(
-                              onPressed: onCameraPressed,
-                              iconSize: 50,
-                              icon: Icon(Icons.camera),
-                            ),
-                            IconButton(
-                              onPressed: onPhotoLibraryPressed,
-                              iconSize: 50,
-                              icon: Icon(Icons.photo_album),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          onPressed: _switchCamera,
-                          icon: Icon(Icons.refresh),
-                          iconSize: 50,
-                          color: Colors.blue,
-                        ),
-                        Text(
-                          _currentCameraIndex == 0 ? 'Back Camera' : 'Front Camera',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  )
                 ],
               );
             } else {
-              return Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator());
             }
           },
         ),

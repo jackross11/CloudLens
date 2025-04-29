@@ -32,13 +32,47 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (context) => MainPage(signOutCallback: widget.signOutCallback)),
         );
       } else {
-        // Sign-in failed
-        print('Sign-in failed: ${signInResult.toString()}');
+        // Sign-in failed (non-cognito error)
+        showErrorSnackBar('Sign-in failed. Please check your credentials and try again.');
       }
     } catch (e) {
-      // Handle any errors that occurred during sign-in
-      print('Error signing in: $e');
+      // Handle errors
+      String errorMessage = 'An unexpected error occurred. Please try again later.';
+
+      if (e is AuthException) {
+        // Specific Amplify Auth exceptions
+        final authError = e as AuthException;
+
+        if (authError.message.contains('UserNotFoundException')) {
+          errorMessage = 'No account found with this email. Please sign up first.';
+        } else if (authError.message.contains('Incorrect username or password')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (authError.message.contains('NotAuthorizedException')) {
+          errorMessage = 'You are not authorized to access this account.';
+        } else if (authError.message.contains('TooManyRequestsException')) {
+          errorMessage = 'Too many requests. Please try again later.';
+        } else {
+          // For other cases
+          errorMessage = 'Authentication error: ${authError.message}. Please try again later.';
+        }
+      } else if (e is AmplifyException) {
+        // Catch any general Amplify exception
+        errorMessage = 'Amplify error: ${e.message}. Please try again later.';
+      } else {
+        // Catch any other unexpected errors
+        errorMessage = 'An unexpected error occurred: $e. Please try again later.';
+      }
+
+      // Show the custom error message
+      showErrorSnackBar(errorMessage);
+      print('Error signing in: $e'); // Debugging print to see the raw error
     }
+  }
+
+  void showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   // Handle sign-in button click
