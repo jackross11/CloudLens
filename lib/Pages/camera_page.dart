@@ -1,10 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
-import 'package:flutter/services.dart'; // for ByteData
 
 class CameraPage extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -49,102 +47,92 @@ class _CameraPageState extends State<CameraPage> {
     _initializeCamera(_currentCameraIndex);
   }
 
-  //take a photo and save
   void onCameraPressed() async {
-  try {
-    if (!_controller.value.isInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Camera not initialized')),
-      );
-      return;
-    }
-
-    await _initControllerFuture;
-    final image = await _controller.takePicture();
-
-    final bytes = await File(image.path).readAsBytes();
-    final result = await ImageGallerySaverPlus.saveImage(
-      Uint8List.fromList(bytes),
-      name: "cloudlens_${DateTime.now().millisecondsSinceEpoch}",
-    );
-
-    if (result['isSuccess'] == true || result['isSuccess'] == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Saved to gallery!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Failed to save photo')),
-      );
-    }
-
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
-  }
-}
-
-  void onPhotoLibraryPressed() async {
     try {
-      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        print('select images from gallery: ${image.path}');
+      if (!_controller.value.isInitialized) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('image selected: ${image.path}')),
+          SnackBar(content: Text('Camera not initialized')),
+        );
+        return;
+      }
+
+      await _initControllerFuture;
+      final image = await _controller.takePicture();
+
+      final bytes = await File(image.path).readAsBytes();
+      final result = await ImageGallerySaverPlus.saveImage(
+        Uint8List.fromList(bytes),
+        name: "cloudlens_${DateTime.now().millisecondsSinceEpoch}",
+      );
+
+      if (result['isSuccess'] == true || result['isSuccess'] == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Saved to gallery!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Failed to save photo')),
         );
       }
     } catch (e) {
-      print('unable to select an image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder(
-        future: _initControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CameraPreview(_controller),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        print('clicked');
-                        onCameraPressed();
-                      },
-                      iconSize: 50,
-                      icon: Icon(Icons.camera),
+      body: SafeArea(
+        child: FutureBuilder(
+          future: _initControllerFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              return Stack(
+                children: [
+                  Column(
+                    children: [
+                      Expanded(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: CameraPreview(_controller),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20.0),
+                        child: Center(
+                          child: IconButton(
+                            onPressed: onCameraPressed,
+                            iconSize: 70,
+                            icon: const Icon(Icons.camera_alt),
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: IconButton(
+                      onPressed: _switchCamera,
+                      icon: const Icon(Icons.cameraswitch),
+                      iconSize: 40,
+                      color: Colors.white,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(128, 0, 0, 0),
+                        shape: const CircleBorder(),
+                      ),
                     ),
-                    IconButton(
-                      onPressed: onPhotoLibraryPressed,
-                      iconSize: 50,
-                      icon: Icon(Icons.photo_album),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: _switchCamera,
-                  icon: Icon(Icons.refresh),
-                  iconSize: 50,
-                  color: Colors.blue,
-                ),
-                Text(
-                  _currentCameraIndex == 0 ? 'back' : 'front',
-                  style: TextStyle(fontSize: 16),
-                )
-              ],
-            );
-          } else {
-            return Center(child: CircularProgressIndicator());
-          }
-        },
+                  ),
+                ],
+              );
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        ),
       ),
     );
   }
